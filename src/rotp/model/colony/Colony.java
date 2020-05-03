@@ -45,9 +45,9 @@ import rotp.util.Base;
 
 public final class Colony implements Base, IMappedObject, Serializable {
     private static final long serialVersionUID = 1L;
-    private static final int[] validationSeq = { 3, 2, 0, 1, 4, 5 };
-    private static final int[] spendingSeq = { 4, 0, 1, 2, 3, 5 };
-    private static final int[] cleanupSeq =  { 2, 4, 1, 0, 3, 5 };
+    private static final int[] validationSeq = { 3, 2, 0, 1, 4 };
+    private static final int[] spendingSeq = { 4, 0, 1, 2, 3 };
+    private static final int[] cleanupSeq =  { 2, 4, 1, 0, 3 };
     private static final String[] categoryNames = { "MAIN_COLONY_SHIP", "MAIN_COLONY_DEFENSE", "MAIN_COLONY_INDUSTRY",
                     "MAIN_COLONY_ECOLOGY", "MAIN_COLONY_TECHNOLOGY" };
 
@@ -100,6 +100,8 @@ public final class Colony implements Base, IMappedObject, Serializable {
 
     private boolean underSiege = false;
     private transient boolean hasNewOrders = false;
+    private transient int cleanupAllocation = 0;
+    private transient boolean keepEcoLockedToClean;
 
     public boolean underSiege()                { return underSiege; }
     public float reserveIncome()              { return reserveIncomeBC; }
@@ -157,6 +159,11 @@ public final class Colony implements Base, IMappedObject, Serializable {
         int needed = ecology().cleanupAllocationNeeded();
         int curr = ecology().allocation();
         return curr < needed;
+    }
+    private int cleanupAllocation() {
+        if (cleanupAllocation < 0)
+            cleanupAllocation = ecology().cleanupAllocationNeeded();
+        return cleanupAllocation;
     }
     @Override
     public String toString()                   { return "Colony: " + name();  }
@@ -394,6 +401,7 @@ public final class Colony implements Base, IMappedObject, Serializable {
             planet.resetWaste();
             planet.addWaste(planet.maxWaste());
         }
+        cleanupAllocation = -1;
     }
 
     public void nextTurn() {
@@ -407,6 +415,9 @@ public final class Colony implements Base, IMappedObject, Serializable {
         if (inRebellion())
             return;
 
+        // after turn is over, we may need to reset ECO spending to adjust for cleanup
+        keepEcoLockedToClean = !locked[ECOLOGY] && empire().isPlayer() && (allocation[ECOLOGY] == cleanupAllocation());
+        
         // make sure that the colony's expenses aren't too high
         empire().governorAI().lowerExpenses(this);
 
@@ -450,6 +461,14 @@ public final class Colony implements Base, IMappedObject, Serializable {
         industry().assessTurn();
         ecology().assessTurn();
         research().assessTurn();
+        
+        if (keepEcoLockedToClean) {
+            int newAlloc = ecology().cleanupAllocationNeeded();
+            if (allocation[ECOLOGY] != newAlloc) {
+                allocation[ECOLOGY] = cleanupAllocation = newAlloc;
+                empire().ai().governor().setColonyAllocations(this);
+            }
+        }
     }
     public boolean canLowerMaintenance() { return transporting(); }
 
@@ -863,7 +882,7 @@ public final class Colony implements Base, IMappedObject, Serializable {
         // add firepower for each allied ship in orbit
         List<ShipFleet> fleets = starSystem().orbitingFleets();
         for (ShipFleet fl : fleets) {
-            if (empire.alliedWith(fl.empId()))
+            if (fl.empire().aggressiveWith(tr.empId()))
                 defenderDmg += fl.firepower(0);
         }
 
@@ -1197,9 +1216,14 @@ public final class Colony implements Base, IMappedObject, Serializable {
         return newGrownPopulation;
     }
     // Try to transport extra population to other plants.
-    // Let's not do complex pop growth calculations. Send 1 transport at max pop, assume planets don't grow
-    // on their own
-    // TODO: add a toggle to make this optional
+    // Since 1.9 minimum cost to transport population is 10 BC which means
+    // we have to transport in bunches of ~10 (configurable).
+    // This introduces some restrictions:
+    // We only transport when planet is fully built (eco, industry, etc).
+    // (I won't wait for defences)
+    // We only transport limited distance.
+    // Should we transport from hostile planets (?)
+    // We chose targets more carefully.
     private void autotransport() {
         if (transporting() || !canTransport() || maxTransportsAllowed() <= 0) {
             return;
@@ -1208,12 +1232,18 @@ public final class Colony implements Base, IMappedObject, Serializable {
         if (expectedPopulation() < planet.currentSize()) {
             return;
         }
-        float floatExcess = this.workingPopulation() + unrestrictedPopGrowth() + incomingTransportsNextTurn() - planet().currentSize();
-        // if we are at max pop, send out transports even if growth is between 0 and 1, so always round up
-        int excess = (int)Math.ceil(floatExcess);
-//        System.out.println("autotransport "+this.name()+" excess "+excess);
-//        System.out.println("autotransport "+this.name()+" growth "+normalPopGrowth());
-//        System.out.println("autotransport "+this.name()+" ugrowth "+unrestrictedPopGrowth());
+        if (!this.ecology().isCompleted()) {
+            return;
+        }
+        if (!this.industry().isCompleted()) {
+            return;
+        }
+        // don't calculate excess. Just check if this colony is the right size.
+        GovernorOptions options = session().getGovernorOptions();
+        int size = options.getTransportPopulation() * 100 / options.getTransportMaxPercent();
+        if (planet.currentSize() < size) {
+            return;
+        }
         // find a suitable target. Closest colony that needs population
         List<StarSystem> targets = new ArrayList<>(empire().allColonizedSystems().size());
         Map<StarSystem, Float> transportTimes = new HashMap<>();
@@ -1223,11 +1253,16 @@ public final class Colony implements Base, IMappedObject, Serializable {
             if (ss.colony() == this) {
                 continue;
             }
-            // don't transport to systems that have 80% population already
-            if (ss.colony().expectedPopulation() >= ss.planet().currentSize()*0.8) {
+            // don't transport to systems that have 70% population already
+            if (ss.colony().expectedPopulation() >= ss.planet().currentSize()*0.7) {
                 continue;
             }
             float transportTime = ss.travelTime(this, ss, this.empire().tech().transportSpeed());
+            // limit max transport time
+            double maxTime = ss.inNebula() ? options.getTransportMaxTurns() * 1.5 : options.getTransportMaxTurns();
+            if (transportTime > maxTime) {
+                continue;
+            }
             double expectedPopAtTransportTime = ss.colony().population() +
                     Math.pow(1+ss.colony().normalPopGrowth() / ss.colony().population(), transportTime);
             float popFraction = ss.colony().population() / ss.planet().currentSize();
@@ -1269,7 +1304,7 @@ public final class Colony implements Base, IMappedObject, Serializable {
 //            System.out.println("autotransport target from "+this.name()+" to "+ss.name()+" rank "+ranks.get(ss));
 //        }
         // round excess down
-        int toTransport = Math.min(maxTransportsAllowed(), excess);
+        int toTransport = options.getTransportPopulation();
         // let's make sure we don't trigger governor in scheduleTransportsToSystem, otherwise we get endless recursion
         governor = false;
         scheduleTransportsToSystem(targets.get(0), toTransport);
