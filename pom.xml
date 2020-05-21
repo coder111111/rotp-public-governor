@@ -28,6 +28,14 @@
                 <directory>src</directory>
                 <excludes>
                     <exclude>**/*.java</exclude>
+                    <exclude>**/*.bak</exclude>
+                    <exclude>**/assembly.xml</exclude>
+
+                    <exclude>**/*.png</exclude>
+                    <exclude>**/*.wav</exclude>
+                    <exclude>**/*.jpg</exclude>
+                    <exclude>**/*.ogg</exclude>
+                    <exclude>**/*.webp</exclude>
                 </excludes>
             </resource>
         </resources>
@@ -64,6 +72,26 @@
                                     </manifestEntries>
                                 </transformer>
                             </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>org.apache.commons:commons-math3</artifact>
+                                    <includes>
+                                        <include>**/ArgUtils*</include>
+                                        <include>**/DimensionMismatchException*</include>
+                                        <include>**/ExceptionContext*</include>
+                                        <include>**/ExceptionContextProvider*</include>
+                                        <include>**/FastMath*</include>
+                                        <include>**/FastMathCalc*</include>
+                                        <include>**/FastMathLiteralArrays*</include>
+                                        <include>**/Localizable*</include>
+                                        <include>**/LocalizedFormats*</include>
+                                        <include>**/MathArithmeticException*</include>
+                                        <include>**/MathIllegalArgumentException*</include>
+                                        <include>**/MathIllegalNumberException*</include>
+                                        <include>**/Precision*</include>
+                                    </includes>
+                                </filter>
+                            </filters>
                         </configuration>
                     </execution>
                 </executions>

@@ -42,6 +42,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -576,7 +577,14 @@ public interface Base {
         return false;
     }
     public default URL url(String n) {
-        return Rotp.class.getResource(n);
+        File f = new File("/app/rotp/"+n);
+        try {
+            URL url = f.toURI().toURL();
+            return url;
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage(), e);
+        }
     }
     public default ImageIcon icon(String n)  {
         return icon(n, true);
@@ -602,22 +610,8 @@ public interface Base {
         else 
             return new ImageIcon(resource);
     }
-    public default File file(String n) {
-        return new File(Rotp.jarPath(), n);
-    }
-    public default InputStream fileInputStream(String n) {
-        String fullString = "../rotp/" +n;
-
-        try { return new FileInputStream(new File(Rotp.jarPath(), n)); } 
-        catch (FileNotFoundException e) {
-            try { return new FileInputStream(fullString); } 
-            catch (FileNotFoundException ex) {
-                return Rotp.class.getResourceAsStream(n);
-            }
-        }
-    }
     public default BufferedReader reader(String n) {
-        String fullString = "../rotp/" +n;
+        String fullString = "/app/rotp/" +n;
         FileInputStream fis = null;
         InputStreamReader in = null;
         InputStream zipStream = null;
@@ -647,60 +641,6 @@ public interface Base {
             return null;
 
         return new BufferedReader(in);
-    }
-    public default PrintWriter writer(String n) {
-        String fullString = "src/rotp/" +n;
-        try {
-            FileOutputStream fout = new FileOutputStream(new File(fullString));
-            return new PrintWriter(fout, true);
-        }
-        catch (FileNotFoundException e) {
-            err("Base.writer -- " + e);
-            e.printStackTrace();
-            return null;
-        }
-    }
-    public default InputStream inputStream(String n) {
-        InputStream stream = null;
-        File fontFile = new File(n);
-        if (fontFile.exists())
-            try {
-                stream = new FileInputStream(fontFile);
-            }
-            catch (FileNotFoundException e) {
-                err("Base.fileStream -- FileNotFoundException: " + n);
-            }
-        else {
-            JarFile jarFile = null;
-            try {
-                jarFile = new JarFile(Rotp.jarFileName);
-                ZipEntry ze = jarFile.getEntry(n);
-                if (ze != null)
-                    stream = jarFile.getInputStream(ze);
-            }
-            catch (IOException e) {
-                err("Base.fileStream -- IOException: " + n);
-            }
-            finally {
-                try {
-                    if (jarFile != null)
-                        jarFile.close();
-                } catch (IOException e) {}
-            }
-        }
-        return stream;
-    }
-    public default OutputStream outputStream(String s) throws IOException {
-        try {
-            OutputStream file = new FileOutputStream(s);
-            OutputStream buffer = new BufferedOutputStream(file);
-            return buffer;
-        }
-        catch(IOException e){
-            log("Cannot create output file: ", s);
-            log(e.getMessage());
-            throw(e);
-        }
     }
     public static int compare(int a, int b)        { return a-b; }
     public static int compare(float a, float b)  { return Float.compare(a, b); }

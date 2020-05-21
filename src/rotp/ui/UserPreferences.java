@@ -35,14 +35,14 @@ public class UserPreferences {
     private static final String PREFERENCES_FILE = "Remnants.cfg";
     private static final String keyFormat = "%-20s: ";
     private static boolean showMemory = false;
-    private static boolean playMusic = true;
-    private static boolean playSounds = true;
+    private static boolean playMusic = false;
+    private static boolean playSounds = false;
     private static boolean displayYear = true;
     private static boolean textures = true;
     private static float uiTexturePct = 0.20f;
     private static int screenSizePct = 93;
     private static final HashMap<String, String> raceNames = new HashMap<>();
-    private static GraphicsSetting graphicsLevel = GraphicsSetting.NORMAL;
+    private static GraphicsSetting graphicsLevel = GraphicsSetting.LOW;
 
     public static boolean showMemory()      { return showMemory; }
     public static void toggleMemory()       { showMemory = !showMemory; save(); }
@@ -102,7 +102,7 @@ public class UserPreferences {
             out.println(keyFormat("UI_TEXTURES")+ yesOrNo(textures));
             out.println(keyFormat("UI_TEXTURE_LEVEL")+(int) (uiTexturePct()*100));
             out.println(keyFormat("LANGUAGE")+ languageDir());
-            for (String raceKey: raceKeys) 
+            for (String raceKey: raceKeys)
               out.println(keyFormat(raceKey)+raceNames.get(raceKey));
         }
         catch (IOException e) {

@@ -296,7 +296,7 @@ public class GameUI  extends BasePanel implements MouseListener, MouseMotionList
         shrinkText      = new BaseText(this, false,20,   10,24,  enabledC, disabledC, hoverC, depressedC, shadedC, 0, 0, 0);
         enlargeText     = new BaseText(this, false,20,    0,24,  enabledC, disabledC, hoverC, depressedC, shadedC, 0, 0, 0);
         enlargeText.preceder(shrinkText);
-        continueText    = new BaseText(this, true, 50,   0, 300,  enabledC, disabledC, hoverC, depressedC, shadedC, 1, 1, 8);
+//        continueText    = new BaseText(this, true, 50,   0, 300,  enabledC, disabledC, hoverC, depressedC, shadedC, 1, 1, 8);
         newGameText     = new BaseText(this, true, 50,   0, 360,  enabledC, disabledC, hoverC, depressedC, shadedC, 1, 1, 8);
         loadGameText    = new BaseText(this, true, 50,   0, 420,  enabledC, disabledC, hoverC, depressedC, shadedC, 2, 1, 8);
         saveGameText    = new BaseText(this, true, 50,   0, 480,  enabledC, disabledC, hoverC, depressedC, shadedC, 2, 1, 8);
@@ -336,7 +336,7 @@ public class GameUI  extends BasePanel implements MouseListener, MouseMotionList
     }
     private void setTextValues() {
         discussText.displayText(text("GAME_DISCUSS_ONLINE"));
-        continueText.displayText(text("GAME_MENU_CONTINUE"));
+//        continueText.displayText(text("GAME_MENU_CONTINUE"));
         newGameText.displayText(text("GAME_MENU_NEW_GAME"));
         loadGameText.displayText(text("GAME_MENU_LOAD_GAME"));
         saveGameText.displayText(text("GAME_MENU_SAVE_GAME"));
@@ -429,7 +429,9 @@ public class GameUI  extends BasePanel implements MouseListener, MouseMotionList
             discussText.drawCentered(g);
 
         if (canRestart()) {
-            continueText.reset();
+            if (continueText != null) {
+                continueText.reset();
+            }
             newGameText.reset();
             loadGameText.reset();
             saveGameText.reset();
@@ -439,8 +441,20 @@ public class GameUI  extends BasePanel implements MouseListener, MouseMotionList
         }
         else {
             restartText.reset();
+            System.out.println("restartText success");
+            // This somehow fixes CheerpJ issue with continueText not
+            // being initialized.
+            // If continueText is a class field, CheerpJ fails. If it's a local
+            // variable, it works OK.
+            Color enabledC = menuEnabled[opt()];
+            Color disabledC = menuDisabled[opt()];
+            Color shadedC = menuShade[opt()];
+            BaseText continueText = new BaseText(this, true, 50,   0, 300,  enabledC, disabledC, hoverC, depressedC, shadedC, 1, 1, 8);
+            continueText.displayText(text("GAME_MENU_CONTINUE"));
             continueText.disabled(!canContinue());
             continueText.drawCentered(g);
+            System.out.println("continueText2 success");
+            this.continueText = continueText;
             newGameText.disabled(!canNewGame());
             newGameText.drawCentered(g);
             loadGameText.disabled(!canLoadGame());
@@ -476,7 +490,9 @@ public class GameUI  extends BasePanel implements MouseListener, MouseMotionList
 
     private void rescaleMenuOptions() {
         restartText.rescale();
-        continueText.rescale();
+        if (continueText != null) {
+            continueText.rescale();
+        }
         newGameText.rescale();
         loadGameText.rescale();
         saveGameText.rescale();
@@ -697,7 +713,7 @@ public class GameUI  extends BasePanel implements MouseListener, MouseMotionList
 
         if (discussText.contains(x,y))
             openRedditPage();
-        else if (continueText.contains(x,y))
+        else if (continueText != null && continueText.contains(x,y))
             continueGame();
         else if (newGameText.contains(x,y))
             newGame();
@@ -741,7 +757,7 @@ public class GameUI  extends BasePanel implements MouseListener, MouseMotionList
             languagePanel.setVisible(true);
         else if (discussText.contains(x,y))
             newHover = discussText;
-        else if (canContinue() && continueText.contains(x,y))
+        else if (canContinue() && continueText != null && continueText.contains(x,y))
             newHover = continueText;
         else if (canNewGame() && newGameText.contains(x,y))
             newHover = newGameText;

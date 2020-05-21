@@ -254,15 +254,15 @@ public class ShipLibrary implements Base {
                     ShipImage styleImage = new ShipImage();
                     style.images.add(styleImage);
                     String shipIconKey = fileName(i,j,k);
-                    if (url(shipIconKey) != null)
-                        styleImage.iconKeys.add(shipIconKey);
-                    else {
+
+
+
                         for (String f: frameKey) {
                             shipIconKey = fileName(i,j,k,f);
                             if (url(shipIconKey) != null) 
                                 styleImage.iconKeys.add(shipIconKey);
                         }
-                    }
+
                 }
             }
         }

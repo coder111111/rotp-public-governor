@@ -39,7 +39,7 @@ public class Rotp {
     public static int IMG_W = 1229;
     public static int IMG_H = 768;
     public static String jarFileName = "ROTP-"+RotpGovernor.governorVersion+".jar";
-    private static String jarPath;
+    private static final String jarPath = "/files/";
     private static JFrame frame;
     public static String releaseId = "Beta 1.12";
     public static long startMs = System.currentTimeMillis();
@@ -57,6 +57,7 @@ public class Rotp {
                 return;
             logging = false;
         }
+        RotPUI.instance();
         reloadRecentSave = args.length > 0 && args[0].equals("reload");
         stopIfInsufficientMemory(frame, (int)maxHeapMemory);
         Thread.setDefaultUncaughtExceptionHandler(new SwingExceptionHandler());
@@ -107,17 +108,6 @@ public class Rotp {
         return resizeAmt;
     }
     public static String jarPath()  {
-        if (jarPath == null) {
-            try {
-                String path = Rotp.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-                System.out.println("Jar Path: "+path);
-                path = URLDecoder.decode(path, "UTF-8");
-                jarPath = (new File(path)).getParentFile().getPath();
-            } catch (UnsupportedEncodingException ex) {
-                System.out.println("Unable to resolve jar path: "+ex.toString());
-                jarPath = ".";
-            }
-        }
         return jarPath;
     }
     private static void stopIfInsufficientMemory(JFrame frame, int allocMb) {
